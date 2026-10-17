@@ -84,15 +84,19 @@ class Hit(_Envelope):
     bm25_rank: int | None = None
 
 
-class QuarantinedChunk(_Envelope):
-    chunk_id: str
+class QuarantinedPassage(_Envelope):
+    """Text kept out of the index because it carries a prompt-injection shape."""
+
+    doc_id: str
+    location: str
     rules: tuple[str, ...]
+    excerpt: str
 
 
 class IngestReport(_Envelope):
     documents: int
     chunks_indexed: int
-    quarantined: tuple[QuarantinedChunk, ...] = ()
+    quarantined: tuple[QuarantinedPassage, ...] = ()
     index_version: int
 
 

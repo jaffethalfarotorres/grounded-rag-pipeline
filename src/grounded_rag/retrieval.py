@@ -43,6 +43,9 @@ class BM25Index:
             self._df.subtract(counts.keys())
             self._df = +self._df  # drop zero counts
 
+    def document_frequency(self, term: str) -> int:
+        return self._df[term]
+
     def _idf(self, term: str) -> float:
         n, df = len(self._terms), self._df[term]
         return math.log(1.0 + (n - df + 0.5) / (df + 0.5))
@@ -90,6 +93,10 @@ class HybridRetriever:
 
     def __len__(self) -> int:
         return len(self._chunks)
+
+    def knows(self, term: str) -> bool:
+        """Whether any indexed chunk contains this (normalized) term."""
+        return self._bm25.document_frequency(term) > 0
 
     def add(self, chunks: Sequence[Chunk]) -> None:
         """Index chunks. Re-adding a document replaces all of its previous chunks."""
