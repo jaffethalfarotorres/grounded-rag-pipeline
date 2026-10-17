@@ -1,0 +1,22 @@
+# Retrieval over the bundled corpus with the default (offline) hashing embedder.
+# A case passes when one of its relevant documents is in the top 4. Gate: recall@4 >= 0.90.
+# MRR (mean reciprocal rank of the first relevant document) is reported alongside.
+
+- {id: backups-retention, question: "How long are backups kept?", relevant: [data-retention]}
+- {id: enterprise-uptime, question: "What uptime does the Enterprise plan target?", relevant: [sla]}
+- {id: pro-price, question: "How much does the Pro plan cost?", relevant: [pricing]}
+- {id: annual-refund, question: "Can I get my money back for an annual plan?", relevant: [refunds]}
+- {id: encryption-at-rest, question: "Which encryption is used for data at rest?", relevant: [security]}
+- {id: pro-support-speed, question: "How fast does support answer Pro customers?", relevant: [support]}
+- {id: api-key-expiry, question: "When do API keys expire?", relevant: [onboarding]}
+- {id: change-region, question: "Can I move my workspace to another region?", relevant: [regions]}
+- {id: deleted-projects, question: "What happens to deleted projects?", relevant: [data-retention]}
+- {id: maintenance-downtime, question: "Is scheduled maintenance counted as downtime?", relevant: [sla]}
+- {id: pro-members, question: "How many members can a Pro workspace have?", relevant: [pricing]}
+- {id: overage-refund, question: "Are overage charges refundable?", relevant: [refunds]}
+- {id: workspace-roles, question: "Which roles exist in a workspace?", relevant: [onboarding]}
+- {id: soc2, question: "Is there a SOC 2 report?", relevant: [security]}
+- {id: partner-discount, question: "What discount do partners get?", relevant: [partner-faq]}
+- {id: phone-support, question: "Is phone support available?", relevant: [support]}
+- {id: annual-savings, question: "How much do I save with annual billing?", relevant: [pricing]}
+- {id: eu-data, question: "Where is data for EU workspaces stored?", relevant: [regions]}

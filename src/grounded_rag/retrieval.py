@@ -94,6 +94,12 @@ class HybridRetriever:
     def __len__(self) -> int:
         return len(self._chunks)
 
+    def chunks_of(self, doc_id: str) -> list[Chunk]:
+        """The indexed chunks of one document, in order."""
+        return sorted(
+            (c for c in self._chunks.values() if c.doc_id == doc_id), key=lambda c: c.index
+        )
+
     def knows(self, term: str) -> bool:
         """Whether any indexed chunk contains this (normalized) term."""
         return self._bm25.document_frequency(term) > 0

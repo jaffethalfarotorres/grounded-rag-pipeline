@@ -1,0 +1,100 @@
+# The grounding gate against hand-written answers. Sources are documents of the bundled
+# corpus, labelled S1, S2... in the order listed. Release-critical gate: pass^k == 1.0.
+#
+# expect: pass | block   rules: findings that must be present (subset)
+# known_limitation: run and reported, but not gated (it documents what the gate misses).
+
+- id: faithful-quote
+  sources: [refunds]
+  answer: "Refunds are issued within 14 days of a written request [S1]."
+  expect: pass
+
+- id: changed-number
+  sources: [refunds]
+  answer: "Refunds are issued within 30 days of a written request [S1]."
+  expect: block
+  rules: [number_not_in_source]
+
+- id: fabricated-label
+  sources: [refunds]
+  answer: "Refunds are issued within 14 days of a written request [S4]."
+  expect: block
+  rules: [fabricated_citation]
+
+- id: uncited-claim
+  sources: [refunds]
+  answer: "Refunds are issued within 14 days of a written request."
+  expect: block
+  rules: [uncited_claim]
+
+- id: right-fact-wrong-source
+  sources: [refunds, pricing]
+  answer: "The Pro plan costs 49 USD per month per workspace [S1]."
+  expect: block
+  rules: [unsupported_claim]
+
+- id: more-precise-than-source
+  sources: [sla]
+  answer: "Acme Cloud targets 99.99% monthly uptime for every paid plan [S1]."
+  expect: block
+  rules: [number_not_in_source]
+
+- id: enterprise-uptime
+  sources: [sla]
+  answer: "Enterprise workspaces target 99.95% monthly uptime [S1]."
+  expect: pass
+
+- id: two-sources-one-sentence
+  sources: [pricing, support]
+  answer: "The Pro plan costs 49 USD per month and includes email support [S1, S2]."
+  expect: pass
+
+- id: label-after-the-period
+  sources: [refunds]
+  answer: "Refunds are issued within 14 days of a written request. [S1]"
+  expect: pass
+
+- id: number-from-an-uncited-document
+  sources: [refunds]
+  answer: "Annual billing saves 15% compared with monthly billing [S1]."
+  expect: block
+  rules: [number_not_in_source, unsupported_claim]
+
+- id: invented-claim
+  sources: [security]
+  answer: "Customer data is stored on quantum-resistant hardware in Iceland [S1]."
+  expect: block
+  rules: [unsupported_claim]
+
+- id: second-sentence-uncited
+  sources: [data-retention]
+  answer: "Backups are kept for 35 days [S1]. Restores are free of charge."
+  expect: block
+  rules: [uncited_claim]
+
+- id: empty-answer
+  sources: [refunds]
+  answer: "   "
+  expect: block
+  rules: [empty_answer]
+
+- id: correct-paraphrase-is-blocked-by-design
+  # Conservative by design: true, but in words the source does not use. The pipeline
+  # then answers with an extractive quote instead of releasing unverifiable wording.
+  sources: [refunds]
+  answer: "Customers get their money back in two weeks [S1]."
+  expect: block
+  rules: [unsupported_claim]
+
+- id: admin-mfa
+  sources: [security]
+  answer: "Multi-factor authentication is required for every workspace admin [S1]."
+  expect: pass
+
+- id: limitation-extra-clause-in-words
+  known_limitation: >-
+    A sentence that is mostly copied from the source can smuggle in a short invented
+    clause: support stays above 0.5 and the number check only sees digits, not words.
+  sources: [data-retention]
+  answer: "Backups are kept for 35 days and are replicated to three continents [S1]."
+  expect: block
