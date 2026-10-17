@@ -31,6 +31,7 @@ dev = [
 serve = ["uvicorn>=0.29"]
 pdf = ["pypdf>=4.0"]
 docx = ["python-docx>=1.1"]
+embeddings = ["sentence-transformers>=3.0"]
 watsonx = ["ibm-watsonx-ai>=1.1"]
 groq = ["groq>=0.9"]
 huggingface = ["huggingface_hub>=0.24"]
