@@ -13,7 +13,7 @@ import unicodedata
 
 _TOKEN = re.compile(r"[a-z0-9]+(?:\.[0-9]+)?")
 
-# A plain word list reads better than 70 one-item lines.
+# A plain word list reads better than one word per line.
 STOPWORDS = frozenset(
     """a an and any are as at be been but by can could did do does for from had has have
     how i if in into is it its me my no not of on or our so than that the their them
