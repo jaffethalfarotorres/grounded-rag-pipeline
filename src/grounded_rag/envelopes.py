@@ -66,6 +66,8 @@ class Chunk(_Envelope):
     index: int = Field(ge=0)
     text: str
     metadata: dict[str, str] = Field(default_factory=dict)
+    overlap: int = Field(default=0, ge=0)
+    """Leading characters repeated from the previous chunk (context, not new content)."""
 
     @model_validator(mode="after")
     def _check_id(self) -> Self:
