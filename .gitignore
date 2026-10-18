@@ -23,3 +23,6 @@ htmlcov/
 
 # Eval output
 eval_report.json
+
+# Hypothesis example database
+.hypothesis/
