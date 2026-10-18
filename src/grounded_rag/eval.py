@@ -26,7 +26,13 @@ from typing import Any
 
 import yaml
 
-from grounded_rag.bootstrap import BACKEND_CHOICES, DEFAULT_CORPUS_DIR, build_pipeline
+from grounded_rag.bootstrap import (
+    BACKEND_CHOICES,
+    DEFAULT_CORPUS_DIR,
+    EMBEDDER_CHOICES,
+    build_pipeline,
+)
+from grounded_rag.embedder import EmbedderUnavailable
 from grounded_rag.envelopes import Document, Hit, RAGAnswer
 from grounded_rag.grounding import verify
 from grounded_rag.pipeline import PipelineConfig, RAGPipeline
@@ -74,10 +80,20 @@ def load_cases(path: Path) -> list[Case]:
     return list(yaml.safe_load(Path(path).read_text(encoding="utf-8")) or [])
 
 
-def eval_pipeline(corpus_dir: Path, *, backend: str, env: Mapping[str, str] | None) -> RAGPipeline:
+def eval_pipeline(
+    corpus_dir: Path,
+    *,
+    backend: str,
+    env: Mapping[str, str] | None,
+    embedder: str = "hashing",
+) -> RAGPipeline:
     """The bundled corpus, with the answer cache off so repeated runs really re-run."""
     pipeline, _ = build_pipeline(
-        corpus_dir=corpus_dir, backend=backend, env=env, config=PipelineConfig(cache_size=0)
+        corpus_dir=corpus_dir,
+        backend=backend,
+        embedder=embedder,
+        env=env,
+        config=PipelineConfig(cache_size=0),
     )
     return pipeline
 
@@ -158,6 +174,7 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
     failures: dict[str, list[str]] = {}
     limitations: dict[str, str] = {}
     ranks: list[int | None] = []
+    semantic_ranks: list[int | None] = []
     generators: Counter[str] = Counter()
     rejections: dict[str, list[str]] = {}
     rejected = 0
@@ -167,6 +184,11 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
         for _ in range(runs):
             if suite.name == "retrieval":
                 rank, problems = run_retrieval_case(case, rag)
+                if case.get("semantic"):
+                    # Paraphrases with no shared keywords: reported, never gated, so a
+                    # lexical embedder is not failed for what it cannot do by design.
+                    semantic_ranks.append(rank)
+                    break
                 ranks.append(rank)
             elif suite.name == "grounding":
                 problems = run_grounding_case(case, rag)
@@ -187,6 +209,8 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
             results.append(not problems)
             if problems:
                 failures.setdefault(case["id"], problems)
+        if not results:  # a semantic case: reported on its own, outside the gate
+            continue
         if "known_limitation" in case:
             verdict = "still missed" if not all(results) else "now handled"
             limitations[case["id"]] = f"{verdict}: {' '.join(case['known_limitation'].split())}"
@@ -198,6 +222,12 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
     extra = {}
     if suite.name == "retrieval":
         extra["mrr"] = round(sum(1 / r for r in ranks if r) / len(ranks), 3) if ranks else 0.0
+        if semantic_ranks:
+            found = sum(rank is not None for rank in semantic_ranks)
+            extra["semantic_cases"] = len(semantic_ranks)
+            extra["semantic_recall"] = round(found / len(semantic_ranks), 3)
+            reciprocal = sum(1 / r for r in semantic_ranks if r)
+            extra["semantic_mrr"] = round(reciprocal / len(semantic_ranks), 3)
     if suite.name == "qa":
         extra |= {f"answered_by_{name}": count for name, count in sorted(generators.items())}
         extra["llm_answers_rejected"] = rejected
@@ -221,21 +251,22 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
 def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m grounded_rag.eval")
     parser.add_argument("--backend", choices=BACKEND_CHOICES, default="none")
+    parser.add_argument("--embedder", choices=EMBEDDER_CHOICES, default="hashing")
     parser.add_argument("--k", type=int, default=1, help="runs per QA case")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS_DIR)
     parser.add_argument("--json", type=Path, help="also write the report to this file")
     args = parser.parse_args(argv)
 
     try:
-        rag = eval_pipeline(args.corpus, backend=args.backend, env=env)
-    except BackendUnavailable as exc:
+        rag = eval_pipeline(args.corpus, backend=args.backend, embedder=args.embedder, env=env)
+    except (BackendUnavailable, EmbedderUnavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     k = args.k if args.backend != "none" else 1
 
     reports = [_run_suite(suite, rag, k) for suite in SUITES]
     mode = "extractive answers, no LLM" if args.backend == "none" else f"LLM via {args.backend}"
-    print(f"backend: {args.backend} ({mode})  k={k}")
+    print(f"backend: {args.backend} ({mode})  embedder: {args.embedder}  k={k}")
     print(f"{'suite':<10} {'ran':>4} {'pass@k':>7} {'pass^k':>7}  gate")
     for report in reports:
         extra = "".join(f"  {name}={value}" for name, value in report.extra.items())
@@ -252,7 +283,12 @@ def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None
             print(f"  GROUNDING REJECTED {report.name}/{case_id}: {'; '.join(findings)}")
 
     if args.json:
-        payload = {"backend": args.backend, "k": k, "suites": [r.__dict__ for r in reports]}
+        payload = {
+            "backend": args.backend,
+            "embedder": args.embedder,
+            "k": k,
+            "suites": [r.__dict__ for r in reports],
+        }
         args.json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return 0 if all(report.passed for report in reports) else 1
 

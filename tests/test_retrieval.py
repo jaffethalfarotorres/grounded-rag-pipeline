@@ -1,8 +1,15 @@
 import math
+import sys
+from types import SimpleNamespace
 
 import pytest
 
-from grounded_rag.embedder import HashingEmbedder, SentenceTransformerEmbedder
+from grounded_rag.embedder import (
+    EmbedderUnavailable,
+    FastEmbedEmbedder,
+    HashingEmbedder,
+    make_embedder,
+)
 from grounded_rag.envelopes import Chunk
 from grounded_rag.retrieval import BM25Index, HybridRetriever, rrf
 from grounded_rag.text import content_tokens, coverage, tokens
@@ -79,18 +86,83 @@ def test_empty_text_embeds_to_the_zero_vector():
     assert set(HashingEmbedder(dim=8).embed([""])[0]) == {0.0}
 
 
-def test_sentence_transformer_adapter_normalizes_and_converts_to_lists():
-    class FakeModel:
-        def get_sentence_embedding_dimension(self):
-            return 2
+class FakeVector(list):
+    """Stands in for a numpy row: fastembed yields arrays that have ``tolist``."""
 
-        def encode(self, sentences, normalize_embeddings):
-            assert normalize_embeddings is True
-            return [[0.6, 0.8] for _ in sentences]
+    def tolist(self):
+        return list(self)
 
-    embedder = SentenceTransformerEmbedder(FakeModel(), name="fake")
+
+class FakeFastEmbedModel:
+    """fastembed.TextEmbedding: passage_embed / query_embed yield one array per text."""
+
+    embedding_size = 2
+
+    def passage_embed(self, texts):
+        return (FakeVector([3.0, 4.0]) for _ in texts)  # not unit length on purpose
+
+    def query_embed(self, query):
+        return (FakeVector([0.0, 5.0]) for _ in ([query] if isinstance(query, str) else query))
+
+
+def test_fastembed_adapter_converts_arrays_and_normalizes_passages():
+    embedder = FastEmbedEmbedder(FakeFastEmbedModel(), name="fake")
     assert embedder.dim == 2
-    assert embedder.embed(["a", "b"]) == [[0.6, 0.8], [0.6, 0.8]]
+    assert embedder.embed(["a", "b"]) == [pytest.approx([0.6, 0.8])] * 2
+
+
+def test_fastembed_queries_use_the_query_side_of_the_model():
+    embedder = FastEmbedEmbedder(FakeFastEmbedModel(), name="fake")
+    assert embedder.embed_query("a question") == pytest.approx([0.0, 1.0])
+
+
+def test_hashing_embedder_queries_match_its_text_embeddings():
+    embedder = HashingEmbedder()
+    assert embedder.embed_query("refund policy") == embedder.embed(["refund policy"])[0]
+
+
+def test_fastembed_missing_sdk_says_how_to_install_it(monkeypatch):
+    monkeypatch.setitem(sys.modules, "fastembed", None)
+    with pytest.raises(EmbedderUnavailable, match=r"grounded-rag-pipeline\[embeddings\]"):
+        FastEmbedEmbedder.from_name()
+
+
+def test_fastembed_from_name_builds_the_model_with_the_default_name(monkeypatch):
+    built = []
+
+    def text_embedding(model_name):
+        built.append(model_name)
+        return FakeFastEmbedModel()
+
+    monkeypatch.setitem(sys.modules, "fastembed", SimpleNamespace(TextEmbedding=text_embedding))
+    embedder = FastEmbedEmbedder.from_name()
+    assert built == ["BAAI/bge-small-en-v1.5"]
+    assert embedder.name == "BAAI/bge-small-en-v1.5"
+
+
+def test_retriever_embeds_queries_through_the_query_side():
+    class Spy(HashingEmbedder):
+        queries: list[str]
+
+        def __init__(self):
+            super().__init__()
+            self.queries = []
+
+        def embed_query(self, text):
+            self.queries.append(text)
+            return super().embed_query(text)
+
+    spy = Spy()
+    retriever = HybridRetriever(spy)
+    retriever.add(CORPUS)
+    retriever.search("How long do refunds take?")
+    assert spy.queries == ["How long do refunds take?"]
+
+
+def test_make_embedder_selects_by_name():
+    assert make_embedder("hashing").name == "hashing"
+    with pytest.raises(ValueError, match="unknown embedder"):
+        make_embedder("word2vec")
 
 
 # --- BM25 and fusion ---------------------------------------------------------------------------

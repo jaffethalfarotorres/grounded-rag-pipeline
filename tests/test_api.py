@@ -50,6 +50,7 @@ def test_health_reports_the_index(client):
         "chunks": 3,
         "index_version": 1,
         "generator": "extractive",
+        "embedder": "hashing",
     }
 
 
@@ -65,3 +66,10 @@ def test_app_factory_loads_a_corpus_directory_from_the_environment(tmp_path):
     app = app_from_env({"RAG_CORPUS_DIR": str(tmp_path), "RAG_BACKEND": "none"})
     body = TestClient(app).get("/health").json()
     assert body["documents"] == 1
+
+
+def test_embedder_comes_from_the_environment(tmp_path):
+    env = {"RAG_CORPUS_DIR": str(tmp_path), "RAG_EMBEDDER": "hashing"}
+    assert TestClient(app_from_env(env)).get("/health").json()["embedder"] == "hashing"
+    with pytest.raises(ValueError, match="unknown embedder"):
+        app_from_env({**env, "RAG_EMBEDDER": "word2vec"})

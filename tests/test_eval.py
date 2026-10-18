@@ -109,3 +109,28 @@ def test_flaky_runner_feeds_pass_rates():
     flips = cycle([True, False])
     outcomes = {"case": [next(flips) for _ in range(3)]}
     assert pass_rates(outcomes) == (1.0, 0.0)
+
+
+def test_main_accepts_an_embedder_and_reports_it_in_the_json(tmp_path):
+    out = tmp_path / "report.json"
+    assert main(["--embedder", "hashing", "--json", str(out)], env={}) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["embedder"] == "hashing"
+
+
+def test_semantic_cases_are_reported_separately_and_never_gate(tmp_path, monkeypatch):
+    cases = tmp_path / "retrieval.yaml"
+    cases.write_text(
+        "- id: lexical\n  question: How long are backups kept?\n  relevant: [data-retention]\n"
+        "- id: paraphrase-nobody-can-find\n  semantic: true\n  question: zzz qqq xxx\n"
+        "  relevant: [no-such-doc]\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(SUITES[0], "path", cases)
+    out = tmp_path / "report.json"
+    assert main(["--json", str(out)], env={}) == 0  # the unreachable case does not fail the gate
+    retrieval = json.loads(out.read_text(encoding="utf-8"))["suites"][0]
+    assert retrieval["ran"] == 1
+    assert retrieval["extra"]["semantic_cases"] == 1
+    assert retrieval["extra"]["semantic_recall"] == 0.0
+    assert retrieval["extra"]["semantic_mrr"] == 0.0
+    assert retrieval["extra"]["mrr"] == 1.0  # MRR is over the gated cases only

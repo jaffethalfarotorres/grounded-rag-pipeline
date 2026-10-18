@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -48,3 +49,21 @@ def test_missing_provider_setup_is_reported_without_a_traceback(corpus, capsys):
 def test_bad_filter_syntax_is_a_usage_error(corpus):
     with pytest.raises(SystemExit):
         main(["ask", "q", "--corpus", str(corpus), "--filter", "no-equals-sign"])
+
+
+def test_embedder_flag_selects_the_embedder(corpus, capsys):
+    argv = ["ask", "How long do refunds take?", "--corpus", str(corpus), "--embedder", "hashing"]
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "answered"
+
+
+def test_unknown_embedder_is_a_usage_error(corpus):
+    with pytest.raises(SystemExit):
+        main(["ask", "q", "--corpus", str(corpus), "--embedder", "word2vec"])
+
+
+def test_missing_fastembed_is_reported_without_a_traceback(corpus, capsys, monkeypatch):
+    monkeypatch.setitem(sys.modules, "fastembed", None)
+    argv = ["ask", "q", "--corpus", str(corpus), "--embedder", "fastembed"]
+    assert main(argv) == 2
+    assert "grounded-rag-pipeline[embeddings]" in capsys.readouterr().err

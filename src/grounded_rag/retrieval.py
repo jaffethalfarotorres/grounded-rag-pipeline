@@ -136,7 +136,7 @@ class HybridRetriever:
             for cid, _ in self._bm25.search(content_tokens(query), top_n=len(self._chunks))
             if cid in allowed
         ][: self.candidates]
-        query_vector = self.embedder.embed([query])[0]
+        query_vector = self.embedder.embed_query(query)
         semantic = [
             cid
             for _, cid in sorted(

@@ -20,3 +20,13 @@
 - {id: phone-support, question: "Is phone support available?", relevant: [support]}
 - {id: annual-savings, question: "How much do I save with annual billing?", relevant: [pricing]}
 - {id: eu-data, question: "Where is data for EU workspaces stored?", relevant: [regions]}
+
+# --- Paraphrases with no shared keywords (semantic: true) -----------------------------------
+# Written before either embedder was run on them. Reported as semantic_recall, never gated:
+# the offline hashing embedder is lexical by design and is not failed for what it cannot do.
+- {id: sem-scrambled-storage, semantic: true, question: "Is my information scrambled while it sits on your servers?", relevant: [security]}
+- {id: sem-money-back-yearly, semantic: true, question: "Can I get my money returned after cancelling a yearly subscription?", relevant: [refunds]}
+- {id: sem-message-answered, semantic: true, question: "How quickly is a paying customer's message answered?", relevant: [support]}
+- {id: sem-thrown-away, semantic: true, question: "What happens to things I throw away inside a project?", relevant: [data-retention]}
+- {id: sem-reseller-reach, semantic: true, question: "Where are resellers allowed to operate?", relevant: [partner-faq]}
+- {id: sem-offline-upgrades, semantic: true, question: "Does the service go offline when you upgrade it?", relevant: [sla]}

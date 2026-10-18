@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
+from grounded_rag.embedder import EMBEDDERS, make_embedder
 from grounded_rag.envelopes import IngestReport
 from grounded_rag.generation import LLMGenerator
 from grounded_rag.loaders import load_directory
@@ -14,6 +15,7 @@ from grounded_rag.providers import BACKENDS, LLMBackend, backend_from_env
 
 DEFAULT_CORPUS_DIR = Path(__file__).resolve().parents[2] / "corpus"
 BACKEND_CHOICES = ["none", *BACKENDS]
+EMBEDDER_CHOICES = list(EMBEDDERS)
 
 
 def resolve_backend(name: str, env: Mapping[str, str] | None = None) -> LLMBackend | None:
@@ -25,11 +27,16 @@ def build_pipeline(
     *,
     corpus_dir: Path | None,
     backend: str = "none",
+    embedder: str = "hashing",
     env: Mapping[str, str] | None = None,
     config: PipelineConfig | None = None,
 ) -> tuple[RAGPipeline, IngestReport | None]:
     llm = resolve_backend(backend, env)
-    pipeline = RAGPipeline(generator=LLMGenerator(llm) if llm else None, config=config)
+    pipeline = RAGPipeline(
+        embedder=make_embedder(embedder),
+        generator=LLMGenerator(llm) if llm else None,
+        config=config,
+    )
     report = None
     if corpus_dir is not None:
         documents, _ = load_directory(Path(corpus_dir))

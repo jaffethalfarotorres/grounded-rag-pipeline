@@ -53,6 +53,7 @@ def create_app(pipeline: RAGPipeline) -> FastAPI:
             "chunks": len(pipeline.retriever),
             "index_version": pipeline.index_version,
             "generator": pipeline.generator_name,
+            "embedder": pipeline.retriever.embedder.name,
         }
 
     @app.get("/metrics", response_class=PlainTextResponse)
@@ -69,6 +70,7 @@ def app_from_env(env: Mapping[str, str] | None = None) -> FastAPI:
     pipeline, _ = build_pipeline(
         corpus_dir=corpus if corpus.is_dir() else None,
         backend=env.get("RAG_BACKEND", "none"),
+        embedder=env.get("RAG_EMBEDDER", "hashing"),
         env=env,
     )
     return create_app(pipeline)
