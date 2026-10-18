@@ -192,9 +192,13 @@ class RAGPipeline:
         if self.llm is not None:
             try:
                 text = self.llm.generate(question, hits)
-                self.metrics.inc("rag_llm_calls_total", outcome="ok")
+                provider = getattr(self.llm.backend, "last_provider", None) or self.llm.backend.name
+                self.metrics.inc("rag_llm_calls_total", outcome="ok", provider=provider)
+                trace.append(f"llm: answered by {provider}")
             except BackendError as exc:
-                self.metrics.inc("rag_llm_calls_total", outcome="error")
+                self.metrics.inc(
+                    "rag_llm_calls_total", outcome="error", provider=self.llm.backend.name
+                )
                 trace.append(f"llm: {exc}; using the extractive answer")
                 text, cacheable = None, False
             if text is not None:

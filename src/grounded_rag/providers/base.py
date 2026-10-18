@@ -13,7 +13,7 @@ import importlib
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from types import ModuleType
-from typing import ClassVar
+from typing import ClassVar, Protocol
 
 from grounded_rag.envelopes import ModelTier
 
@@ -28,6 +28,14 @@ class BackendError(RuntimeError):
 
 class BackendUnavailable(BackendError):
     """The provider cannot be used here: SDK not installed or credentials missing."""
+
+
+class Completer(Protocol):
+    """Anything that turns a prompt into text: one provider, or a chain of them."""
+
+    name: str
+
+    def complete(self, prompt: str, *, system: str, tier: ModelTier = "small") -> str: ...
 
 
 class LLMBackend(ABC):

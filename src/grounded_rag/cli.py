@@ -14,9 +14,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from grounded_rag.bootstrap import (
-    BACKEND_CHOICES,
     DEFAULT_CORPUS_DIR,
     EMBEDDER_CHOICES,
+    backend_spec,
     build_pipeline,
 )
 from grounded_rag.embedder import EmbedderUnavailable
@@ -37,7 +37,7 @@ def _parser() -> argparse.ArgumentParser:
     ask = commands.add_parser("ask", help="answer one question and print the RAGAnswer as JSON")
     ask.add_argument("question")
     ask.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS_DIR)
-    ask.add_argument("--backend", choices=BACKEND_CHOICES, default="none")
+    ask.add_argument("--backend", type=backend_spec, default="none", metavar="BACKEND")
     ask.add_argument("--embedder", choices=EMBEDDER_CHOICES, default="hashing")
     ask.add_argument("--top-k", type=int, default=4)
     ask.add_argument("--filter", type=_filter, action="append", default=[], metavar="KEY=VALUE")
@@ -47,7 +47,7 @@ def _parser() -> argparse.ArgumentParser:
 
     serve = commands.add_parser("serve", help="run the HTTP API (needs the [serve] extra)")
     serve.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS_DIR)
-    serve.add_argument("--backend", choices=BACKEND_CHOICES, default="none")
+    serve.add_argument("--backend", type=backend_spec, default="none", metavar="BACKEND")
     serve.add_argument("--embedder", choices=EMBEDDER_CHOICES, default="hashing")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -68,6 +68,9 @@ def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None
     except (BackendUnavailable, EmbedderUnavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+    for name, reason in getattr(getattr(pipeline.llm, "backend", None), "skipped", {}).items():
+        print(f"note: skipped {name}: {reason}", file=sys.stderr)
 
     if args.command == "serve":
         import uvicorn

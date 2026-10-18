@@ -27,9 +27,9 @@ from typing import Any
 import yaml
 
 from grounded_rag.bootstrap import (
-    BACKEND_CHOICES,
     DEFAULT_CORPUS_DIR,
     EMBEDDER_CHOICES,
+    backend_spec,
     build_pipeline,
 )
 from grounded_rag.embedder import EmbedderUnavailable
@@ -250,7 +250,7 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
 
 def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m grounded_rag.eval")
-    parser.add_argument("--backend", choices=BACKEND_CHOICES, default="none")
+    parser.add_argument("--backend", type=backend_spec, default="none", metavar="BACKEND")
     parser.add_argument("--embedder", choices=EMBEDDER_CHOICES, default="hashing")
     parser.add_argument("--k", type=int, default=1, help="runs per QA case")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS_DIR)

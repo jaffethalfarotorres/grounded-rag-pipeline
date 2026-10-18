@@ -11,7 +11,7 @@ from collections import defaultdict
 _HELP = {
     "rag_queries_total": ("counter", "Questions answered, by final status."),
     "rag_cache_hits_total": ("counter", "Questions served from the answer cache."),
-    "rag_llm_calls_total": ("counter", "LLM calls, by outcome."),
+    "rag_llm_calls_total": ("counter", "LLM calls, by outcome and provider."),
     "rag_grounding_rejections_total": ("counter", "LLM answers rejected by the grounding gate."),
     "rag_chunks_indexed_total": ("counter", "Chunks added to the index."),
     "rag_passages_quarantined_total": ("counter", "Passages kept out for prompt injection."),

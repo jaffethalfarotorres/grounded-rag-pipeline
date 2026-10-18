@@ -98,7 +98,7 @@ def test_provider_outage_degrades_to_the_extractive_answer():
     assert result.status is AnswerStatus.ANSWERED
     assert result.generator == "extractive"
     assert any("503" in step for step in result.trace)
-    assert 'rag_llm_calls_total{outcome="error"} 1' in rag.metrics.render()
+    assert 'rag_llm_calls_total{outcome="error",provider="mock"} 1' in rag.metrics.render()
 
 
 # --- ingest -----------------------------------------------------------------------------------

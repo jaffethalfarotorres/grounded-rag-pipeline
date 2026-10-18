@@ -47,7 +47,10 @@ def create_app(pipeline: RAGPipeline) -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, object]:
+        backend = getattr(pipeline.llm, "backend", None)
+        providers = {"providers": backend.status()} if hasattr(backend, "status") else {}
         return {
+            **providers,
             "status": "ok",
             "documents": len(pipeline.documents),
             "chunks": len(pipeline.retriever),

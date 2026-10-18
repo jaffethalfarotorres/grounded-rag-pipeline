@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from grounded_rag.providers.base import BackendError, BackendUnavailable, LLMBackend
+from grounded_rag.providers.base import BackendError, BackendUnavailable, Completer, LLMBackend
+from grounded_rag.providers.fallback import FallbackBackend, build_chain
 from grounded_rag.providers.groq import GroqBackend
 from grounded_rag.providers.huggingface import HuggingFaceBackend
 from grounded_rag.providers.mock import LLMCall, MockBackend
@@ -30,6 +31,8 @@ __all__ = [
     "BACKENDS",
     "BackendError",
     "BackendUnavailable",
+    "Completer",
+    "FallbackBackend",
     "GroqBackend",
     "HuggingFaceBackend",
     "LLMBackend",
@@ -38,4 +41,5 @@ __all__ = [
     "OllamaBackend",
     "WatsonxBackend",
     "backend_from_env",
+    "build_chain",
 ]

@@ -73,3 +73,15 @@ def test_embedder_comes_from_the_environment(tmp_path):
     assert TestClient(app_from_env(env)).get("/health").json()["embedder"] == "hashing"
     with pytest.raises(ValueError, match="unknown embedder"):
         app_from_env({**env, "RAG_EMBEDDER": "word2vec"})
+
+
+def test_health_lists_the_providers_of_a_fallback_chain():
+    from grounded_rag.generation import LLMGenerator
+    from grounded_rag.providers import FallbackBackend, MockBackend
+
+    chain = FallbackBackend([("groq", MockBackend(["x"])), ("ollama", MockBackend(["y"]))])
+    rag = RAGPipeline(generator=LLMGenerator(chain))
+    body = TestClient(create_app(rag)).get("/health").json()
+    assert body["generator"] == "llm:chain(groq>ollama)"
+    assert set(body["providers"]) == {"groq", "ollama"}
+    assert body["providers"]["groq"]["state"] == "ready"

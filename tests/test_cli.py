@@ -1,5 +1,6 @@
 import json
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -67,3 +68,37 @@ def test_missing_fastembed_is_reported_without_a_traceback(corpus, capsys, monke
     argv = ["ask", "q", "--corpus", str(corpus), "--embedder", "fastembed"]
     assert main(argv) == 2
     assert "grounded-rag-pipeline[embeddings]" in capsys.readouterr().err
+
+
+def test_a_comma_separated_backend_is_a_fallback_chain_and_reports_every_missing_key(
+    corpus, capsys
+):
+    argv = ["ask", "q", "--corpus", str(corpus), "--backend", "groq,huggingface"]
+    assert main(argv, env={}) == 2
+    err = capsys.readouterr().err
+    assert "GROQ_API_KEY" in err
+    assert "HF_TOKEN" in err
+
+
+def test_an_unknown_provider_inside_a_chain_is_a_usage_error(corpus):
+    with pytest.raises(SystemExit):
+        main(["ask", "q", "--corpus", str(corpus), "--backend", "groq,word2vec"])
+
+
+def test_a_chain_with_one_usable_provider_runs_and_the_skipped_ones_are_listed(
+    corpus, capsys, monkeypatch
+):
+    fake_sdk = SimpleNamespace(InferenceClient=lambda *, token: object())
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake_sdk)
+    argv = [
+        "ask",
+        "How long do refunds take?",
+        "--corpus",
+        str(corpus),
+        "--backend",
+        "groq,huggingface",
+    ]
+    assert main(argv, env={"HF_TOKEN": "hf_test"}) == 0
+    captured = capsys.readouterr()
+    assert "skipped groq" in captured.err
+    assert json.loads(captured.out)["status"] in {"answered", "refused"}

@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from grounded_rag.defense import build_system_prompt, wrap_untrusted
 from grounded_rag.envelopes import Hit, ModelTier
 from grounded_rag.grounding import split_sentences
-from grounded_rag.providers.base import LLMBackend
+from grounded_rag.providers.base import Completer
 from grounded_rag.text import content_tokens
 
 REFUSAL = "I can't answer that from the available documents."
@@ -71,7 +71,7 @@ class ExtractiveGenerator:
 class LLMGenerator:
     name = "llm"
 
-    def __init__(self, backend: LLMBackend, *, tier: ModelTier = "small") -> None:
+    def __init__(self, backend: Completer, *, tier: ModelTier = "small") -> None:
         self.backend = backend
         self.tier = tier
         self.system_prompt = build_system_prompt(ANSWER_TASK)
