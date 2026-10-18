@@ -27,6 +27,7 @@ Rules:
 - Plain text, at most 3 sentences, no markdown."""
 
 _BULLET = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+_SPACES = re.compile(r"[^\S\n]+")  # any whitespace except newlines, Unicode included
 
 
 def is_refusal(text: str) -> bool:
@@ -78,4 +79,7 @@ class LLMGenerator:
     def generate(self, question: str, hits: Sequence[Hit]) -> str:
         sources = "\n\n".join(f"[{h.source_id}] {h.chunk.title}\n{h.chunk.text}" for h in hits)
         prompt = f"Sources:\n{wrap_untrusted(sources)}\n\nQuestion:\n{wrap_untrusted(question)}"
-        return self.backend.complete(prompt, system=self.system_prompt, tier=self.tier).strip()
+        reply = self.backend.complete(prompt, system=self.system_prompt, tier=self.tier)
+        # Models emit narrow no-break and other Unicode spaces ("49\u202fUSD", seen live on
+        # Groq). Normalize them so the gate, the cache and every consumer see plain spaces.
+        return _SPACES.sub(" ", reply).strip()

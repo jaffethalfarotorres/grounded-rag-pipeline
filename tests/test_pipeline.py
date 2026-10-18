@@ -60,6 +60,16 @@ def test_grounded_llm_answer_is_released():
     assert result.rejected is None
 
 
+def test_exotic_spaces_in_model_output_are_normalized_before_release():
+    # Found in a live Groq run: "49\u202fUSD" (narrow no-break space) broke substring search.
+    backend = MockBackend(
+        ["Refunds are issued within 14\u202fdays of a written\u00a0request [S1]."]
+    )
+    result = pipeline(backend).ask("How long do refunds take?")
+    assert result.generator == "llm"
+    assert "14 days of a written request" in result.answer
+
+
 def test_hallucinated_llm_answer_is_replaced_by_a_verifiable_one():
     backend = MockBackend(["Refunds are issued within 30 days of a written request [S1]."])
     result = pipeline(backend).ask("How long do refunds take?")

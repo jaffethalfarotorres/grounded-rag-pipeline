@@ -67,6 +67,7 @@ class SuiteReport:
     extra: dict[str, float] = field(default_factory=dict)
     failures: dict[str, list[str]] = field(default_factory=dict)
     limitations: dict[str, str] = field(default_factory=dict)
+    rejections: dict[str, list[str]] = field(default_factory=dict)
 
 
 def load_cases(path: Path) -> list[Case]:
@@ -158,6 +159,7 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
     limitations: dict[str, str] = {}
     ranks: list[int | None] = []
     generators: Counter[str] = Counter()
+    rejections: dict[str, list[str]] = {}
     rejected = 0
     for case in load_cases(suite.path):
         runs = k if suite.name == "qa" else 1
@@ -174,8 +176,14 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
                 answer = rag.ask(case["question"])
                 if answer.answer is not None:
                     generators[answer.generator] += 1
-                rejected += answer.rejected is not None
+                if answer.rejected is not None:
+                    rejected += 1
+                    rejections.setdefault(case["id"], []).extend(
+                        f"{f.rule}: {f.sentence!r}" for f in answer.rejected.findings
+                    )
                 problems = check_answer(case["expect"], answer)
+                if problems:  # keep what the model said: a flaky failure is otherwise lost
+                    problems.append(f"{answer.generator} answer: {answer.answer!r}")
             results.append(not problems)
             if problems:
                 failures.setdefault(case["id"], problems)
@@ -206,6 +214,7 @@ def _run_suite(suite: Suite, rag: RAGPipeline, k: int) -> SuiteReport:
         extra=extra,
         failures=failures,
         limitations=limitations,
+        rejections=rejections,
     )
 
 
@@ -239,6 +248,8 @@ def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None
             print(f"  FAIL {report.name}/{case_id}: {'; '.join(problems)}")
         for case_id, note in report.limitations.items():
             print(f"  KNOWN LIMITATION {report.name}/{case_id}: {note}")
+        for case_id, findings in report.rejections.items():
+            print(f"  GROUNDING REJECTED {report.name}/{case_id}: {'; '.join(findings)}")
 
     if args.json:
         payload = {"backend": args.backend, "k": k, "suites": [r.__dict__ for r in reports]}
