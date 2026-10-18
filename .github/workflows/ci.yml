@@ -60,3 +60,23 @@ jobs:
       - name: Container logs
         if: always()
         run: docker logs rag
+
+  semantic:
+    # Measures the real local embedding model (bge-small via fastembed, ONNX, CPU). Kept as
+    # its own job because the model downloads from Hugging Face on a cold cache.
+    runs-on: ubuntu-latest
+    env:
+      FASTEMBED_CACHE_PATH: ${{ github.workspace }}/.fastembed
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/cache@v5
+        with:
+          path: .fastembed
+          key: fastembed-bge-small-en-v1.5
+      - run: pip install -e ".[dev,embeddings]"
+      - name: Eval gates with the local embedding model
+        run: python -m grounded_rag.eval --embedder fastembed

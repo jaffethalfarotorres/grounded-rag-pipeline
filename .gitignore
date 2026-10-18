@@ -26,3 +26,6 @@ eval_report.json
 
 # Hypothesis example database
 .hypothesis/
+
+# fastembed model cache (CI)
+.fastembed/

@@ -10,3 +10,4 @@ evals
 .ruff_cache
 .coverage
 *.egg-info
+.fastembed
